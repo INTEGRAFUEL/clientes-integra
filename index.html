@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1557C0">
+<title>Clientes IN´TEGRA FUEL</title>
+<style>
+:root{--az:#1557C0;--az2:#0e3f8c;--cz:#f3f5f9;--bd:#dde3ee;--vm:#d93025;--am:#f2a900;--vd:#1e8e3e;--tx:#1d2330}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--tx);background:var(--cz);font-size:15px}
+header{background:var(--az);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+header h1{font-size:17px;margin:0;flex:1}header button{background:transparent;border:1px solid #fff8;color:#fff}
+nav{display:flex;background:#fff;border-bottom:1px solid var(--bd);position:sticky;top:46px;z-index:4}
+nav a{flex:1;text-align:center;padding:11px 6px;text-decoration:none;color:#555;font-weight:600;border-bottom:3px solid transparent;font-size:14px}
+nav a.on{color:var(--az);border-color:var(--az)}
+main{max-width:960px;margin:0 auto;padding:12px}
+.card{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:10px}
+button,.btn{background:var(--az);color:#fff;border:0;border-radius:8px;padding:10px 14px;font-size:15px;cursor:pointer;text-decoration:none;display:inline-block}
+button.sec{background:#fff;color:var(--az);border:1px solid var(--az)}button.del{background:var(--vm)}button:disabled{opacity:.5}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;font-size:16px;background:#fff;font-family:inherit}
+textarea{min-height:70px}label{display:block;font-size:13px;color:#555;margin:8px 0 3px}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1 1 180px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 12px}
+.item{display:flex;justify-content:space-between;gap:8px;align-items:center;cursor:pointer}
+.item h3{margin:0 0 3px;font-size:16px}.muted{color:#777;font-size:13px}
+.tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap}
+.s-prospect{background:#e8f0fe;color:#1557C0}.s-em{background:#fff4d6;color:#8a6100}.s-cliente{background:#e6f4ea;color:#1e7a34}.s-inativo{background:#eee;color:#555}.s-perdido{background:#fde7e6;color:#b3261e}
+.vencido{border-left:6px solid var(--vm)}.vencendo{border-left:6px solid var(--am)}.ok{border-left:6px solid var(--vd)}
+.b-vm{background:var(--vm);color:#fff}.b-am{background:var(--am);color:#222}.b-vd{background:var(--vd);color:#fff}
+dl{margin:0}dt{font-size:12px;color:#777;margin-top:6px}dd{margin:0;white-space:pre-wrap;word-break:break-word}
+h2{font-size:18px;margin:16px 0 8px;color:var(--az2)}.stars{color:#f2a900;font-size:18px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.toolbar>input{flex:2 1 200px}.toolbar>select{flex:1 1 140px}
+#msg{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;display:none;z-index:9;max-width:90%}
+.login{max-width:380px;margin:40px auto}.hide{display:none!important}
+.sum{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.sum .card{flex:1 1 120px;text-align:center;margin:0}.sum b{font-size:22px;display:block}
+@media(max-width:600px){main{padding:8px}.card{padding:10px}}
+</style>
+</head>
+<body>
+<header><h1>IN´TEGRA FUEL · Clientes</h1><span id="quem" class="muted" style="color:#dfe8ff"></span><button id="sair" class="hide">Sair</button></header>
+<nav id="nav" class="hide"><a href="#/lista" data-r="lista">Clientes e prospects</a><a href="#/venc" data-r="venc">Fiscalizações e Manutenções</a></nav>
+<main id="app"></main>
+<div id="msg"></div>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const SUPABASE_URL='https://vnvpsozrcjazbzqtqona.supabase.co';
+const SUPABASE_KEY='sb_publishable_LWOCYqR_CWl-4Xnhiw6-Gg_GMwehynj';
+const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s), app=$('#app');
+const STATUS=['prospect','em negociação','cliente ativo','inativo','perdido'];
+const ORGAOS=['IAT','IPEM','INMETRO','Corpo de Bombeiros','MTE','ANP','Prefeitura','Interno','Outro'];
+const TIPOS={licenca_operacao:'Licença de operação (IAT)',afericao:'Aferição IPEM (por bomba)',teste_estanqueidade:'Teste de estanqueidade',avcb:'AVCB (Corpo de Bombeiros)',manutencao_preventiva:'Manutenção preventiva',nr20_treinamento:'NR-20 treinamento',nr20_prontuario:'NR-20 prontuário',outro:'Outro'};
+const TIPO_ORGAO={licenca_operacao:'IAT',afericao:'IPEM',avcb:'Corpo de Bombeiros',manutencao_preventiva:'Interno',nr20_treinamento:'MTE',nr20_prontuario:'MTE'};
+const VST=['vigente','vencido','pendente','em andamento','não se aplica'];
+const CAMPOS=[['razao_social','Razão social'],['nome_fantasia','Nome fantasia'],['cnpj_cpf','CNPJ/CPF'],['inscricao_estadual','Inscrição estadual'],['status','Status'],['origem','Origem'],['responsavel_comercial','Responsável comercial'],['proximo_contato','Próximo contato'],['endereco','Endereço'],['numero','Número'],['complemento','Complemento'],['bairro','Bairro'],['cidade','Cidade'],['uf','UF'],['cep','CEP'],['responsaveis','Responsáveis'],['telefones','Telefones'],['whatsapp','WhatsApp'],['email','E-mail'],['bandeira','Bandeira'],['num_tanques','Nº de tanques'],['num_bombas','Nº de bombas'],['monitoramento_tanque','Monitoramento de tanque'],['equipamentos','Equipamentos'],['condicoes_pagamento','Condições de pagamento'],['observacoes','Observações']];
+let acesso={membro:false,avaliador:false,nome:null};
+const esc=v=>v==null||v===''?'—':String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tx=v=>v==null?'':String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const val=v=>v==null?'':String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const dig=s=>(s||'').replace(/\D/g,'');
+const fmtDoc=d=>(d=dig(d)).length===14?d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5'):d.length===11?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4'):d;
+const fmtData=d=>d?d.slice(0,10).split('-').reverse().join('/'):'—';
+const hoje=()=>{const t=new Date();t.setHours(0,0,0,0);return t};
+const dias=d=>d?Math.round((new Date(d+'T00:00:00')-hoje())/864e5):null;
+const stCls=s=>'s-'+(s||'').split(' ')[0];
+const msg=(t,ms=3000)=>{const m=$('#msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(()=>m.style.display='none',ms)};
+const titulo=c=>c.nome_fantasia||c.razao_social;
+const nul=v=>{v=(v??'').toString().trim();return v===''?null:v};
+const tituloCase=s=>s?s.toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)=>a+b.toUpperCase()).replace(/\b(Da|De|Do|Das|Dos|E)\b/g,w=>w.toLowerCase()):s;
+
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  sb.auth.onAuthStateChange((ev,s)=>{if(ev==='SIGNED_OUT')location.hash='';});
+  if(!session)return telaLogin();
+  const {data,error}=await sb.rpc('meu_acesso'); acesso=data||{};
+  $('#sair').classList.remove('hide');$('#quem').textContent=acesso.nome||session.user.email;
+  if(!acesso.membro){app.innerHTML=`<div class="card login"><h2>Acesso não liberado</h2><p>Sua conta (${esc(session.user.email)}) entrou, mas ainda não foi liberada no sistema. Peça ao administrador para incluir seu e-mail.</p></div>`;return}
+  $('#nav').classList.remove('hide'); window.onhashchange=rota; rota();
+}
+$('#sair').onclick=async()=>{await sb.auth.signOut();location.hash='';location.reload()};
+
+function telaLogin(){
+  app.innerHTML=`<form class="card login" id="f"><h2>Entrar</h2><label>E-mail</label><input name="e" type="email" autocomplete="username" required><label>Senha</label><input name="s" type="password" autocomplete="current-password" required><p><button style="width:100%">Entrar</button></p><p class="muted">Acesso restrito à equipe IN´TEGRA FUEL.</p></form>`;
+  $('#f').onsubmit=async e=>{e.preventDefault();const f=e.target;const {error}=await sb.auth.signInWithPassword({email:f.e.value.trim(),password:f.s.value});if(error)return msg('Falha no login: '+(error.message.includes('Invalid')?'e-mail ou senha incorretos':error.message));boot()};
+}
+
+function rota(){
+  const [_,r,id]=(location.hash||'#/lista').split('/');
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.r===(r==='venc'||r==='fisc'?'venc':'lista')));
+  window.scrollTo(0,0);
+  if(r==='cliente')return ficha(+id); if(r==='editar')return form(id?+id:null); if(r==='novo')return form(null);
+  if(r==='venc')return telaVenc(); if(r==='vencform')return formVenc(id); if(r==='fiscform')return formFisc(id);
+  return lista();
+}
+
+let filtro={q:'',st:''};
+async function lista(){
+  app.innerHTML=`<div class="toolbar"><input id="q" placeholder="Buscar por nome ou CNPJ…" value="${val(filtro.q)}"><select id="st"><option value="">Todos os status</option>${STATUS.map(s=>`<option ${filtro.st===s?'selected':''}>${s}</option>`).join('')}</select><a class="btn" href="#/novo">+ Novo</a></div><div id="lst" class="muted">Carregando…</div>`;
+  const {data,error}=await sb.from('clientes').select('id,razao_social,nome_fantasia,cnpj_cpf,cidade,uf,status,proximo_contato,responsavel_comercial').order('nome_fantasia');
+  if(error)return $('#lst').textContent='Erro: '+error.message;
+  const draw=()=>{const q=filtro.q.trim().toLowerCase(),qd=dig(q);
+    const r=data.filter(c=>(!filtro.st||c.status===filtro.st)&&(!q||(c.razao_social||'').toLowerCase().includes(q)||(c.nome_fantasia||'').toLowerCase().includes(q)||(qd.length>=3&&(c.cnpj_cpf||'').includes(qd))));
+    $('#lst').innerHTML=`<p class="muted">${r.length} de ${data.length}</p>`+(r.map(c=>{const d=dias(c.proximo_contato);return `<div class="card item" onclick="location.hash='#/cliente/${c.id}'"><div><h3>${esc(titulo(c))}</h3><div class="muted">${esc(c.razao_social)} · ${fmtDoc(c.cnpj_cpf)||'sem CNPJ'}<br>${esc(c.cidade)}/${esc(c.uf)}${c.proximo_contato?` · Próx. contato: <b style="color:${d<0?'var(--vm)':d<=7?'#8a6100':'inherit'}">${fmtData(c.proximo_contato)}</b>`:''}</div></div><span class="tag ${stCls(c.status)}">${esc(c.status)}</span></div>`}).join('')||'<div class="card muted">Nenhum resultado.</div>')};
+  $('#q').oninput=e=>{filtro.q=e.target.value;draw()};$('#st').onchange=e=>{filtro.st=e.target.value;draw()};draw();
+}
+
+async function ficha(id){
+  app.innerHTML='<p class="muted">Carregando…</p>';
+  const [c,h,a,v,f]=await Promise.all([sb.from('clientes').select('*').eq('id',id).single(),sb.from('historico').select('*').eq('cliente_id',id).order('data',{ascending:false}).order('id',{ascending:false}),sb.from('avaliacoes').select('*').eq('cliente_id',id).order('data',{ascending:false}).order('id',{ascending:false}),sb.from('vencimentos').select('*').eq('cliente_id',id).order('data_validade'),sb.from('fiscalizacoes').select('*').eq('cliente_id',id).order('data',{ascending:false})]);
+  if(c.error)return app.innerHTML=`<div class="card">Erro: ${esc(c.error.message)}</div>`;
+  const x=c.data;
+  const dados=CAMPOS.map(([k,l])=>`<div><dt>${l}</dt><dd>${k==='cnpj_cpf'?fmtDoc(x[k])||'—':k==='proximo_contato'?fmtData(x[k]):esc(x[k])}</dd></div>`).join('');
+  const av=a.data?.length?a.data.map(r=>`<div class="card"><div><span class="stars">${'★'.repeat(r.estrelas||0)}${'☆'.repeat(5-(r.estrelas||0))}</span> <span class="tag ${r.perfil==='bom pagador'?'b-vd':r.perfil==='bloqueado'?'b-vm':'b-am'}">${esc(r.perfil)}</span> <span class="muted">${fmtData(r.data)} · ${esc(r.avaliador)}</span></div><dl class="grid"><div><dt>Potencial comercial</dt><dd>${esc(r.potencial_comercial)}</dd></div><div><dt>Risco</dt><dd>${esc(r.risco)}</dd></div></dl><dt>Notas do Jhony</dt><dd>${esc(r.notas_jhony)}</dd>${acesso.avaliador?`<p><button class="sec" onclick="editAval(${r.id})">Editar</button></p>`:''}</div>`).join(''):'<p class="muted"><i>Sem avaliação do Jhony</i></p>';
+  window._avals=a.data||[];
+  app.innerHTML=`<p><a href="#/lista">← Voltar</a></p>
+  <div class="card"><div class="item" style="cursor:default"><div><h3 style="font-size:20px">${esc(titulo(x))}</h3><div class="muted">${esc(x.razao_social)}</div></div><span class="tag ${stCls(x.status)}">${esc(x.status)}</span></div>
+  <div class="toolbar" style="margin-top:10px"><a class="btn" href="#/editar/${x.id}">Editar</a>${x.whatsapp?`<a class="btn sec" style="background:#25d366;color:#fff" target="_blank" href="https://wa.me/55${dig(x.whatsapp)}">WhatsApp</a>`:''}<button class="sec" onclick="window.print()">Imprimir</button></div>
+  <dl class="grid">${dados}</dl></div>
+  <h2>Avaliação do Jhony</h2>${av}${acesso.avaliador?`<div class="card" id="avf"></div>`:''}
+  <h2>Licenças e vencimentos</h2>${vencCards(v.data||[],false)}<a class="btn sec" href="#/vencform/novo-${id}">+ Vencimento</a>
+  <h2>Fiscalizações</h2>${fiscCards(f.data||[],false)}<a class="btn sec" href="#/fiscform/novo-${id}">+ Fiscalização</a>
+  <h2>Histórico</h2><form class="card" id="hf"><div class="row"><input name="d" type="date" value="${new Date().toLocaleDateString('sv')}" style="flex:0 1 160px"><input name="t" placeholder="Novo registro de histórico…" required></div><p><button>Adicionar</button></p></form>
+  ${(h.data||[]).map(r=>`<div class="card"><b>${fmtData(r.data)}</b> — ${esc(r.descricao)}</div>`).join('')||'<p class="muted">Sem histórico.</p>'}
+  <p style="margin-top:24px"><button class="del" id="exc">Excluir cadastro</button></p>`;
+  $('#hf').onsubmit=async e=>{e.preventDefault();const {error}=await sb.from('historico').insert({cliente_id:id,data:e.target.d.value,descricao:e.target.t.value.trim()});if(error)return msg('Erro: '+error.message);ficha(id)};
+  $('#exc').onclick=async()=>{if(!confirm('Excluir este cadastro e todo o histórico, vencimentos e avaliações? Não dá para desfazer.'))return;const {error}=await sb.from('clientes').delete().eq('id',id);if(error)return msg('Erro: '+error.message);msg('Excluído');location.hash='#/lista'};
+  if(acesso.avaliador)avalForm(id,null);
+}
+function avalForm(cid,r){
+  r=r||{};const el=$('#avf');
+  el.innerHTML=`<form id="af"><b>${r.id?'Editar avaliação':'Nova avaliação'}</b><div class="row"><div><label>Estrelas</label><select name="estrelas">${[5,4,3,2,1].map(n=>`<option value="${n}" ${r.estrelas==n?'selected':''}>${'★'.repeat(n)}</option>`).join('')}</select></div><div><label>Perfil</label><select name="perfil">${['bom pagador','atenção','bloqueado'].map(p=>`<option ${r.perfil===p?'selected':''}>${p}</option>`).join('')}</select></div><div><label>Data</label><input type="date" name="data" value="${r.data||new Date().toLocaleDateString('sv')}"></div></div><div class="row"><div><label>Potencial comercial</label><input name="potencial_comercial" value="${val(r.potencial_comercial)}"></div><div><label>Risco</label><input name="risco" value="${val(r.risco)}"></div></div><label>Notas do Jhony</label><textarea name="notas_jhony">${tx(r.notas_jhony)}</textarea><p><button>Salvar avaliação</button></p></form>`;
+  $('#af').onsubmit=async e=>{e.preventDefault();const f=e.target;const o={cliente_id:cid,estrelas:+f.estrelas.value,perfil:f.perfil.value,data:f.data.value,potencial_comercial:nul(f.potencial_comercial.value),risco:nul(f.risco.value),notas_jhony:nul(f.notas_jhony.value)};
+    const {error}=r.id?await sb.from('avaliacoes').update(o).eq('id',r.id):await sb.from('avaliacoes').insert(o);if(error)return msg('Erro: '+error.message);msg('Avaliação salva');ficha(cid)};
+}
+window.editAval=id=>{const r=window._avals.find(a=>a.id===id);avalForm(r.cliente_id,r);$('#avf').scrollIntoView({behavior:'smooth'})};
+
+async function form(id){
+  let x={status:'prospect',uf:'PR'};
+  if(id){const {data,error}=await sb.from('clientes').select('*').eq('id',id).single();if(error)return msg(error.message);x=data}
+  const inp=(k,l,t='text',extra='')=>`<div><label>${l}</label><input name="${k}" type="${t}" value="${val(x[k])}" ${extra}></div>`;
+  const sel=(k,l,opts,blank)=>`<div><label>${l}</label><select name="${k}">${blank?'<option value="">—</option>':''}${opts.map(o=>`<option ${x[k]===o?'selected':''}>${o}</option>`).join('')}</select></div>`;
+  const ta=(k,l)=>`<label>${l}</label><textarea name="${k}">${tx(x[k])}</textarea>`;
+  app.innerHTML=`<p><a href="${id?'#/cliente/'+id:'#/lista'}">← Cancelar</a></p><form class="card" id="cf"><h2>${id?'Editar cadastro':'Novo cliente / prospect'}</h2>
+  <div class="row"><div><label>CNPJ/CPF</label><div class="row" style="flex-wrap:nowrap"><input name="cnpj_cpf" value="${val(fmtDoc(x.cnpj_cpf))}" inputmode="numeric" placeholder="só números ou formatado"><button type="button" id="bcnpj" class="sec" style="flex:0 0 auto">Buscar na Receita</button></div></div></div>
+  <p id="rf" class="muted"></p>
+  <div class="row">${inp('razao_social','Razão social *','text','required')}${inp('nome_fantasia','Nome fantasia')}</div>
+  <div class="row">${sel('status','Status',STATUS)}${inp('origem','Origem (indicação, visita…)')}${inp('responsavel_comercial','Responsável comercial')}${inp('proximo_contato','Próximo contato','date')}</div>
+  <div class="row">${inp('inscricao_estadual','Inscrição estadual')}${inp('bandeira','Bandeira')}</div>
+  <div class="row">${inp('cep','CEP')}${inp('endereco','Endereço')}${inp('numero','Número')}</div>
+  <div class="row">${inp('complemento','Complemento')}${inp('bairro','Bairro')}${inp('cidade','Cidade')}${inp('uf','UF','text','maxlength=2')}</div>
+  <div class="row">${inp('responsaveis','Responsáveis')}${inp('telefones','Telefones')}${inp('whatsapp','WhatsApp','tel')}${inp('email','E-mail','email')}</div>
+  <div class="row">${inp('num_tanques','Nº de tanques','number','min=0')}${inp('num_bombas','Nº de bombas','number','min=0')}${sel('monitoramento_tanque','Monitoramento de tanque',['sim','não'],true)}</div>
+  ${ta('equipamentos','Equipamentos')}${ta('condicoes_pagamento','Condições de pagamento')}${ta('observacoes','Observações')}
+  <p><button>Salvar</button></p></form>`;
+  const f=$('#cf');
+  $('#bcnpj').onclick=async()=>{const d=dig(f.cnpj_cpf.value);if(d.length!==14)return msg('Informe um CNPJ com 14 dígitos');$('#rf').textContent='Consultando Receita…';
+    try{const r=await fetch('https://brasilapi.com.br/api/cnpj/v1/'+d);const j=await r.json();if(!r.ok)throw new Error(j.message||r.status);
+      const set=(k,v,force)=>{if(v&&(force||!f[k].value.trim()))f[k].value=v};
+      set('razao_social',j.razao_social,true);set('nome_fantasia',tituloCase(j.nome_fantasia));
+      set('endereco',tituloCase([j.descricao_tipo_de_logradouro,j.logradouro].filter(Boolean).join(' ')),true);set('numero',j.numero,true);set('complemento',tituloCase(j.complemento),true);set('bairro',tituloCase(j.bairro),true);set('cidade',tituloCase(j.municipio),true);set('uf',j.uf,true);set('cep',j.cep?j.cep.replace(/(\d{5})(\d{3})/,'$1-$2'):'',true);
+      const tel=[j.ddd_telefone_1,j.ddd_telefone_2].filter(t=>t&&!/^0+$/.test(t)).map(t=>t.replace(/(\d{2})(\d+)(\d{4})$/,'($1) $2-$3')).join('; ');set('telefones',tel);set('email',(j.email||'').toLowerCase());
+      $('#rf').innerHTML=`Receita: situação <b style="color:${j.descricao_situacao_cadastral==='ATIVA'?'var(--vd)':'var(--vm)'}">${esc(j.descricao_situacao_cadastral)}</b> · ${esc(j.cnae_fiscal_descricao)}. Endereço preenchido com dados da Receita; confira.`;
+    }catch(err){$('#rf').textContent='Não foi possível consultar: '+err.message}};
+  f.onsubmit=async e=>{e.preventDefault();const o={};
+    CAMPOS.forEach(([k])=>{if(f[k])o[k]=nul(f[k].value)});o.cnpj_cpf=dig(o.cnpj_cpf)||null;o.num_tanques=o.num_tanques?+o.num_tanques:null;o.num_bombas=o.num_bombas?+o.num_bombas:null;o.uf=o.uf?o.uf.toUpperCase():null;o.status=o.status||'prospect';
+    if(o.cnpj_cpf&&![11,14].includes(o.cnpj_cpf.length))return msg('CNPJ/CPF deve ter 14 ou 11 dígitos');
+    const r=id?await sb.from('clientes').update(o).eq('id',id).select('id').single():await sb.from('clientes').insert(o).select('id').single();
+    if(r.error)return msg(r.error.code==='23505'?'Já existe cadastro com este CNPJ/CPF':'Erro: '+r.error.message,5000);
+    if(!id)await sb.from('historico').insert({cliente_id:r.data.id,descricao:'Cadastro criado ('+o.status+')'});
+    else if(x.status!==o.status)await sb.from('historico').insert({cliente_id:id,descricao:`Status alterado: ${x.status} → ${o.status}`});
+    msg('Salvo');location.hash='#/cliente/'+r.data.id};
+}
+
+function corVenc(v){const d=dias(v.data_validade);if(v.status==='não se aplica')return['ok','b-vd','n/a'];if(d==null)return['','b-am','sem validade'];if(d<0)return['vencido','b-vm',`vencido há ${-d} dia(s)`];if(d<=60)return['vencendo','b-am',`vence em ${d} dia(s)`];return['ok','b-vd',`em dia (${d} dias)`]}
+function vencCards(arr,comCliente){if(!arr.length)return'<p class="muted">Nenhum vencimento cadastrado.</p>';return arr.map(v=>{const [cl,b,t]=corVenc(v);return `<div class="card ${cl} item" onclick="location.hash='#/vencform/${v.id}'"><div><h3>${esc(TIPOS[v.tipo]||v.tipo)}${v.bomba?' · Bomba '+esc(v.bomba):''}</h3><div class="muted">${comCliente?`<b>${esc(v.nome_fantasia||v.razao_social)}</b> · `:''}${esc(v.orgao)}${v.lacre?' · Lacre '+esc(v.lacre):''}${v.numero_documento?' · Doc '+esc(v.numero_documento):''}<br>Realizado: ${fmtData(v.data_realizacao)} · Validade: <b>${fmtData(v.data_validade)}</b>${v.status?' · '+esc(v.status):''}</div></div><span class="tag ${b}">${t}</span></div>`}).join('')}
+function fiscCards(arr,comCliente){if(!arr.length)return'<p class="muted">Nenhuma fiscalização registrada.</p>';return arr.map(f=>`<div class="card item" onclick="location.hash='#/fiscform/${f.id}'"><div><h3>${esc(f.orgao)} · ${fmtData(f.data)}</h3><div class="muted">${comCliente?`<b>${esc(f.clientes?.nome_fantasia||f.clientes?.razao_social)}</b><br>`:''}Resultado: ${esc(f.resultado)}${f.autuacoes?'<br>Autuações: '+esc(f.autuacoes):''}${f.oportunidade?'<br><b>Oportunidade:</b> '+esc(f.oportunidade):''}</div></div>${f.autuacoes?'<span class="tag b-vm">autuação</span>':''}</div>`).join('')}
+
+async function telaVenc(){
+  app.innerHTML='<p class="muted">Carregando…</p>';
+  const [v,f]=await Promise.all([sb.from('v_vencimentos').select('*').order('data_validade',{nullsFirst:true}),sb.from('fiscalizacoes').select('*,clientes(nome_fantasia,razao_social)').order('data',{ascending:false}).limit(100)]);
+  if(v.error)return app.innerHTML=`<div class="card">Erro: ${esc(v.error.message)}</div>`;
+  const all=v.data,venc=all.filter(x=>corVenc(x)[0]==='vencido'),vendo=all.filter(x=>corVenc(x)[0]==='vencendo'),resto=all.filter(x=>!venc.includes(x)&&!vendo.includes(x));
+  app.innerHTML=`<div class="sum"><div class="card" style="border-top:4px solid var(--vm)"><b>${venc.length}</b>vencidos</div><div class="card" style="border-top:4px solid var(--am)"><b>${vendo.length}</b>vencendo em 60 dias</div><div class="card" style="border-top:4px solid var(--vd)"><b>${resto.length}</b>em dia / outros</div></div>
+  <div class="toolbar"><select id="ft"><option value="">Todos os tipos</option>${Object.entries(TIPOS).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><a class="btn" href="#/vencform/novo">+ Vencimento</a><a class="btn sec" href="#/fiscform/novo">+ Fiscalização</a></div>
+  <div id="vl"></div><h2>Fiscalizações recentes</h2>${fiscCards(f.data||[],true)}`;
+  const draw=()=>{const t=$('#ft').value,fl=a=>a.filter(x=>!t||x.tipo===t);$('#vl').innerHTML=`<h2 style="color:var(--vm)">Vencidos</h2>${vencCards(fl(venc),true)}<h2 style="color:#8a6100">Vencendo nos próximos 60 dias</h2>${vencCards(fl(vendo),true)}<h2>Em dia / outros</h2>${vencCards(fl(resto),true)}`};
+  $('#ft').onchange=draw;draw();
+}
+async function opcoesClientes(sel){const {data}=await sb.from('clientes').select('id,nome_fantasia,razao_social').order('nome_fantasia');return (data||[]).map(c=>`<option value="${c.id}" ${c.id==sel?'selected':''}>${esc(titulo(c))}</option>`).join('')}
+async function formVenc(p){
+  let x={},cid=null;if(p&&p.startsWith('novo')){cid=p.split('-')[1]||null}else if(p){const {data}=await sb.from('vencimentos').select('*').eq('id',p).single();x=data||{};cid=x.cliente_id}
+  const voltar=cid&&!x.id&&p!=='novo'?'#/cliente/'+cid:'#/venc';
+  app.innerHTML=`<p><a href="${voltar}">← Voltar</a></p><form class="card" id="vf"><h2>${x.id?'Editar':'Novo'} vencimento</h2>
+  <label>Cliente *</label><select name="cliente_id" required><option value="">—</option>${await opcoesClientes(cid)}</select>
+  <div class="row"><div><label>Tipo *</label><select name="tipo" required>${Object.entries(TIPOS).map(([k,l])=>`<option value="${k}" ${x.tipo===k?'selected':''}>${l}</option>`).join('')}</select></div><div><label>Órgão</label><select name="orgao"><option value="">—</option>${ORGAOS.map(o=>`<option ${x.orgao===o?'selected':''}>${o}</option>`).join('')}</select></div></div>
+  <div class="row"><div><label>Bomba (aferição IPEM)</label><input name="bomba" value="${val(x.bomba)}" placeholder="ex.: B1"></div><div><label>Lacre IPEM</label><input name="lacre" value="${val(x.lacre)}"></div><div><label>Nº documento</label><input name="numero_documento" value="${val(x.numero_documento)}"></div></div>
+  <div class="row"><div><label>Data de realização</label><input type="date" name="data_realizacao" value="${val(x.data_realizacao)}"></div><div><label>Validade</label><input type="date" name="data_validade" value="${val(x.data_validade)}"></div><div><label>Status</label><select name="status"><option value="">—</option>${VST.map(s=>`<option ${x.status===s?'selected':''}>${s}</option>`).join('')}</select></div></div>
+  <label>Observações</label><textarea name="observacoes">${tx(x.observacoes)}</textarea>
+  <p class="toolbar"><button>Salvar</button>${x.id?'<button type="button" class="del" id="dv">Excluir</button>':''}</p></form>`;
+  const f=$('#vf');if(!x.id)f.tipo.onchange=()=>{if(!f.orgao.value)f.orgao.value=TIPO_ORGAO[f.tipo.value]||''};if(!x.id&&!x.orgao)f.tipo.onchange();
+  f.onsubmit=async e=>{e.preventDefault();const o={cliente_id:+f.cliente_id.value};['tipo','orgao','bomba','lacre','numero_documento','data_realizacao','data_validade','status','observacoes'].forEach(k=>o[k]=nul(f[k].value));
+    const {error}=x.id?await sb.from('vencimentos').update(o).eq('id',x.id):await sb.from('vencimentos').insert(o);if(error)return msg('Erro: '+error.message);msg('Salvo');history.back()};
+  if(x.id)$('#dv').onclick=async()=>{if(!confirm('Excluir este vencimento?'))return;await sb.from('vencimentos').delete().eq('id',x.id);history.back()};
+}
+async function formFisc(p){
+  let x={},cid=null;if(p&&p.startsWith('novo')){cid=p.split('-')[1]||null}else if(p){const {data}=await sb.from('fiscalizacoes').select('*').eq('id',p).single();x=data||{};cid=x.cliente_id}
+  app.innerHTML=`<p><a href="javascript:history.back()">← Voltar</a></p><form class="card" id="ff"><h2>${x.id?'Editar':'Nova'} fiscalização</h2>
+  <label>Cliente *</label><select name="cliente_id" required><option value="">—</option>${await opcoesClientes(cid)}</select>
+  <div class="row"><div><label>Órgão</label><select name="orgao"><option value="">—</option>${ORGAOS.map(o=>`<option ${x.orgao===o?'selected':''}>${o}</option>`).join('')}</select></div><div><label>Data</label><input type="date" name="data" value="${x.data||new Date().toLocaleDateString('sv')}"></div></div>
+  <label>Resultado</label><textarea name="resultado">${tx(x.resultado)}</textarea><label>Autuações</label><textarea name="autuacoes">${tx(x.autuacoes)}</textarea><label>Oportunidade comercial</label><textarea name="oportunidade">${tx(x.oportunidade)}</textarea><label>Observações</label><textarea name="observacoes">${tx(x.observacoes)}</textarea>
+  <p class="toolbar"><button>Salvar</button>${x.id?'<button type="button" class="del" id="df">Excluir</button>':''}</p></form>`;
+  const f=$('#ff');f.onsubmit=async e=>{e.preventDefault();const o={cliente_id:+f.cliente_id.value};['orgao','data','resultado','autuacoes','oportunidade','observacoes'].forEach(k=>o[k]=nul(f[k].value));
+    const {error}=x.id?await sb.from('fiscalizacoes').update(o).eq('id',x.id):await sb.from('fiscalizacoes').insert(o);if(error)return msg('Erro: '+error.message);msg('Salvo');history.back()};
+  if(x.id)$('#df').onclick=async()=>{if(!confirm('Excluir esta fiscalização?'))return;await sb.from('fiscalizacoes').delete().eq('id',x.id);history.back()};
+}
+boot();
+</script>
+</body>
+</html>
