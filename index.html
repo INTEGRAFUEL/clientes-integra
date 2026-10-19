@@ -69,20 +69,65 @@ const titulo=c=>c.nome_fantasia||c.razao_social;
 const nul=v=>{v=(v??'').toString().trim();return v===''?null:v};
 const tituloCase=s=>s?s.toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)=>a+b.toUpperCase()).replace(/\b(Da|De|Do|Das|Dos|E)\b/g,w=>w.toLowerCase()):s;
 
+const APP_URL=location.origin+location.pathname;
+const HASH0=location.hash, QS0=new URLSearchParams(HASH0.replace(/^#/,'')+'&'+location.search.replace(/^\?/,''));
+let emRecuperacao=QS0.get('type')==='recovery';
+const erroLink=QS0.get('error_description');
+sb.auth.onAuthStateChange((ev)=>{
+  if(ev==='PASSWORD_RECOVERY'){emRecuperacao=true;setTimeout(telaNovaSenha,0)}
+  if(ev==='SIGNED_OUT'){location.hash=''}
+});
+const traduz=m=>{m=m||'';if(/Invalid login/i.test(m))return'e-mail ou senha incorretos';if(/Email not confirmed/i.test(m))return'e-mail ainda não confirmado. Abra o link que enviamos para seu e-mail.';if(/rate limit|security purposes/i.test(m))return'muitas tentativas. Aguarde alguns minutos e tente de novo.';if(/at least|Password should/i.test(m))return'a senha precisa ter pelo menos 8 caracteres.';if(/already registered/i.test(m))return'este e-mail já tem cadastro. Use "Entrar" ou "Esqueci minha senha".';if(/signups not allowed|Signups not allowed/i.test(m))return'cadastro de novos usuários está desativado. Peça ao administrador.';return m};
+const telaLiberacao=email=>{app.innerHTML=`<div class="card login"><h2>Acesso não liberado</h2><p><b>Seu acesso ainda não foi liberado. Peça ao administrador.</b></p><p class="muted">Conta: ${esc(email)}</p><p><button class="sec" onclick="location.reload()">Verificar novamente</button></p></div>`};
+
 async function boot(){
   const {data:{session}}=await sb.auth.getSession();
-  sb.auth.onAuthStateChange((ev,s)=>{if(ev==='SIGNED_OUT')location.hash='';});
-  if(!session)return telaLogin();
-  const {data,error}=await sb.rpc('meu_acesso'); acesso=data||{};
-  $('#sair').classList.remove('hide');$('#quem').textContent=acesso.nome||session.user.email;
-  if(!acesso.membro){app.innerHTML=`<div class="card login"><h2>Acesso não liberado</h2><p>Sua conta (${esc(session.user.email)}) entrou, mas ainda não foi liberada no sistema. Peça ao administrador para incluir seu e-mail.</p></div>`;return}
+  if(emRecuperacao&&session)return telaNovaSenha();
+  if(!session)return telaLogin(erroLink?'O link expirou ou é inválido. Peça um novo em "Esqueci minha senha".':null);
+  if(location.hash.includes('access_token')||location.hash.includes('type='))history.replaceState(null,'',APP_URL+'#/lista');
+  $('#sair').classList.remove('hide');$('#quem').textContent=session.user.email;
+  const {data:membro,error:e1}=await sb.rpc('sou_membro');
+  if(e1){app.innerHTML=`<div class="card login">Erro ao verificar acesso: ${esc(e1.message)}</div>`;return}
+  if(!membro)return telaLiberacao(session.user.email);
+  const {data}=await sb.rpc('meu_acesso'); acesso=data||{membro:true};
+  $('#quem').textContent=acesso.nome||session.user.email;
+  if(emRecuperacao)return telaNovaSenha();
   $('#nav').classList.remove('hide'); window.onhashchange=rota; rota();
 }
 $('#sair').onclick=async()=>{await sb.auth.signOut();location.hash='';location.reload()};
 
-function telaLogin(){
-  app.innerHTML=`<form class="card login" id="f"><h2>Entrar</h2><label>E-mail</label><input name="e" type="email" autocomplete="username" required><label>Senha</label><input name="s" type="password" autocomplete="current-password" required><p><button style="width:100%">Entrar</button></p><p class="muted">Acesso restrito à equipe IN´TEGRA FUEL.</p></form>`;
-  $('#f').onsubmit=async e=>{e.preventDefault();const f=e.target;const {error}=await sb.auth.signInWithPassword({email:f.e.value.trim(),password:f.s.value});if(error)return msg('Falha no login: '+(error.message.includes('Invalid')?'e-mail ou senha incorretos':error.message));boot()};
+const links=`<p style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><a href="javascript:void 0" id="lPrim">Primeiro acesso</a><a href="javascript:void 0" id="lEsq">Esqueci minha senha</a></p>`;
+function ligaLinks(){const p=$('#lPrim'),q=$('#lEsq'),v=$('#lVolta');if(p)p.onclick=telaPrimeiroAcesso;if(q)q.onclick=telaEsqueci;if(v)v.onclick=()=>telaLogin()}
+function telaLogin(aviso){
+  app.innerHTML=`<form class="card login" id="f"><h2>Entrar</h2>${aviso?`<p style="color:var(--vm)">${esc(aviso)}</p>`:''}<label>E-mail</label><input name="e" type="email" autocomplete="username" required><label>Senha</label><input name="s" type="password" autocomplete="current-password" required><p><button style="width:100%">Entrar</button></p>${links}<p class="muted">Acesso restrito à equipe IN´TEGRA FUEL.</p></form>`;
+  ligaLinks();
+  $('#f').onsubmit=async e=>{e.preventDefault();const f=e.target;const {error}=await sb.auth.signInWithPassword({email:f.e.value.trim(),password:f.s.value});if(error)return msg('Falha no login: '+traduz(error.message),5000);boot()};
+}
+function telaPrimeiroAcesso(){
+  app.innerHTML=`<form class="card login" id="f"><h2>Primeiro acesso</h2><p class="muted">Use o e-mail informado ao administrador e escolha sua senha.</p><label>E-mail</label><input name="e" type="email" autocomplete="username" required><label>Senha (mínimo 8 caracteres)</label><input name="s" type="password" autocomplete="new-password" minlength="8" required><label>Confirme a senha</label><input name="s2" type="password" autocomplete="new-password" minlength="8" required><p><button style="width:100%">Criar acesso</button></p><p id="res"></p><p><a href="javascript:void 0" id="lVolta">← Voltar para Entrar</a></p></form>`;
+  ligaLinks();
+  $('#f').onsubmit=async e=>{e.preventDefault();const f=e.target,bt=f.querySelector('button');
+    if(f.s.value!==f.s2.value)return msg('As senhas não conferem.');
+    bt.disabled=true;const {data,error}=await sb.auth.signUp({email:f.e.value.trim(),password:f.s.value,options:{emailRedirectTo:APP_URL}});bt.disabled=false;
+    if(error)return msg('Não foi possível criar: '+traduz(error.message),6000);
+    if(data.session)return boot();
+    if(data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){$('#res').innerHTML='<b>Este e-mail já tem cadastro.</b> Use "Entrar" ou "Esqueci minha senha".';return}
+    f.innerHTML=`<h2>Quase lá</h2><p><b>Enviamos um link de confirmação para seu e-mail.</b></p><p>Abra o e-mail (veja também o spam), clique no link e depois volte aqui e entre com seu e-mail e senha.</p><p><a href="javascript:void 0" id="lVolta">← Voltar para Entrar</a></p>`;ligaLinks();
+  };
+}
+function telaEsqueci(){
+  app.innerHTML=`<form class="card login" id="f"><h2>Esqueci minha senha</h2><label>E-mail</label><input name="e" type="email" autocomplete="username" required><p><button style="width:100%">Enviar link</button></p><p><a href="javascript:void 0" id="lVolta">← Voltar para Entrar</a></p></form>`;
+  ligaLinks();
+  $('#f').onsubmit=async e=>{e.preventDefault();const f=e.target;const {error}=await sb.auth.resetPasswordForEmail(f.e.value.trim(),{redirectTo:APP_URL});
+    if(error)return msg('Erro: '+traduz(error.message),6000);
+    f.innerHTML=`<h2>Verifique seu e-mail</h2><p>Se o e-mail tiver cadastro, enviamos um link para criar uma nova senha. Abra-o neste aparelho.</p><p><a href="javascript:void 0" id="lVolta">← Voltar para Entrar</a></p>`;ligaLinks()};
+}
+function telaNovaSenha(){
+  $('#nav').classList.add('hide');
+  app.innerHTML=`<form class="card login" id="f"><h2>Criar nova senha</h2><label>Nova senha (mínimo 8 caracteres)</label><input name="s" type="password" autocomplete="new-password" minlength="8" required><label>Confirme a nova senha</label><input name="s2" type="password" autocomplete="new-password" minlength="8" required><p><button style="width:100%">Salvar nova senha</button></p></form>`;
+  $('#f').onsubmit=async e=>{e.preventDefault();const f=e.target;if(f.s.value!==f.s2.value)return msg('As senhas não conferem.');
+    const {error}=await sb.auth.updateUser({password:f.s.value});if(error)return msg('Erro: '+traduz(error.message),6000);
+    emRecuperacao=false;history.replaceState(null,'',APP_URL+'#/lista');msg('Senha alterada!');boot()};
 }
 
 function rota(){
