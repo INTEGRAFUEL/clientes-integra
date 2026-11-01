@@ -142,11 +142,11 @@ function rota(){
 let filtro={q:'',st:''};
 async function lista(){
   app.innerHTML=`<div class="toolbar"><input id="q" placeholder="Buscar por nome ou CNPJ…" value="${val(filtro.q)}"><select id="st"><option value="">Todos os status</option>${STATUS.map(s=>`<option ${filtro.st===s?'selected':''}>${s}</option>`).join('')}</select><a class="btn" href="#/novo">+ Novo</a></div><div id="lst" class="muted">Carregando…</div>`;
-  const {data,error}=await sb.from('clientes').select('id,razao_social,nome_fantasia,cnpj_cpf,cidade,uf,status,proximo_contato,responsavel_comercial').order('nome_fantasia');
+  const {data,error}=await sb.from('clientes').select('id,razao_social,nome_fantasia,cnpj_cpf,cidade,uf,status,proximo_contato,responsavel_comercial,prioridade,distancia_km').order('prioridade',{ascending:true,nullsFirst:true}).order('distancia_km',{ascending:true,nullsFirst:true}).order('nome_fantasia');
   if(error)return $('#lst').textContent='Erro: '+error.message;
   const draw=()=>{const q=filtro.q.trim().toLowerCase(),qd=dig(q);
     const r=data.filter(c=>(!filtro.st||c.status===filtro.st)&&(!q||(c.razao_social||'').toLowerCase().includes(q)||(c.nome_fantasia||'').toLowerCase().includes(q)||(qd.length>=3&&(c.cnpj_cpf||'').includes(qd))));
-    $('#lst').innerHTML=`<p class="muted">${r.length} de ${data.length}</p>`+(r.map(c=>{const d=dias(c.proximo_contato);return `<div class="card item" onclick="location.hash='#/cliente/${c.id}'"><div><h3>${esc(titulo(c))}</h3><div class="muted">${esc(c.razao_social)} · ${fmtDoc(c.cnpj_cpf)||'sem CNPJ'}<br>${esc(c.cidade)}/${esc(c.uf)}${c.proximo_contato?` · Próx. contato: <b style="color:${d<0?'var(--vm)':d<=7?'#8a6100':'inherit'}">${fmtData(c.proximo_contato)}</b>`:''}</div></div><span class="tag ${stCls(c.status)}">${esc(c.status)}</span></div>`}).join('')||'<div class="card muted">Nenhum resultado.</div>')};
+    $('#lst').innerHTML=`<p class="muted">${r.length} de ${data.length}</p>`+(r.map(c=>{const d=dias(c.proximo_contato);return `<div class="card item" onclick="location.hash='#/cliente/${c.id}'"><div><h3>${esc(titulo(c))}</h3><div class="muted">${esc(c.razao_social)} · ${fmtDoc(c.cnpj_cpf)||'sem CNPJ'}<br>${esc(c.cidade)}/${esc(c.uf)}${c.distancia_km!=null?` · ${c.distancia_km} km`:''}${c.proximo_contato?` · Próx. contato: <b style="color:${d<0?'var(--vm)':d<=7?'#8a6100':'inherit'}">${fmtData(c.proximo_contato)}</b>`:''}</div></div><span class="tag ${stCls(c.status)}">${esc(c.status)}</span></div>`}).join('')||'<div class="card muted">Nenhum resultado.</div>')};
   $('#q').oninput=e=>{filtro.q=e.target.value;draw()};$('#st').onchange=e=>{filtro.st=e.target.value;draw()};draw();
 }
 
